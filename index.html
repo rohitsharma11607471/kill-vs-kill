@@ -1,623 +1,210 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kill</title> 
-    <style>
-        body {
-            text-align: center;
-            margin: 0;
-            overflow: hidden;
-            background-color: #e0f2f7; /* Light sky blue background */
-            font-family: sans-serif;
-            color: #333;
-        }
-        canvas {
-            display: block;
-            margin: 5px auto; /* Reduced margin slightly */
-            /* background: url('A_2D_digital_illustration_in_a_cartoonish_style_de.png') no-repeat center center; */
-            background-color: #f5f5f5;
-            background-size: cover;
-            border: 2px solid #333;
-        }
-        .controls {
-            width: 100%;
-            text-align: center;
-            margin-top: 5px;
-        }
-        button {
-            font-size: 16px; /* Further reduced size */
-            padding: 7px 12px;
-            margin: 3px; /* Reduced margin */
-            cursor: pointer;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-        }
-        button:hover {
-            background-color: #eee;
-        }
-        .ui-container {
-            display: flex;
-            justify-content: space-between; /* Use space-between for ends */
-            align-items: center;
-            position: fixed;
-            top: 5px; /* Reduced top margin */
-            left: 0;
-            width: 100%;
-            padding: 0 15px; /* Adjusted padding */
-            box-sizing: border-box;
-            pointer-events: none; /* Allow clicks through UI */
-        }
-        .ui-group { /* ADVANCED: Group related UI elements */
-             display: flex;
-             align-items: center;
-        }
-        .ui-element {
-            font-size: 18px; /* Adjusted size */
-            color: #111; /* Darker color */
-            background-color: rgba(255, 255, 255, 0.6); /* Less transparent */
-            padding: 4px 8px; /* Adjusted padding */
-            border-radius: 4px;
-            margin: 0 5px; /* Add spacing between elements in a group */
-            min-width: 50px; /* Ensure minimum width */
-            text-align: center;
-        }
-        .health-display { /* ADVANCED: Style for health icons */
-            font-size: 20px;
-            color: red; /* Heart color */
-            margin-left: 5px; /* Space from label */
-        }
-        #highScoreDisplay { /* ADVANCED: Style for high score */
-            position: absolute;
-            top: 30px; /* Position below main UI */
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 14px;
-            color: #555;
-            background-color: rgba(255, 255, 255, 0.5);
-            padding: 2px 6px;
-            border-radius: 3px;
-        }
-
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chrono Arena</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #111;
+      overflow: hidden;
+      font-family: sans-serif;
+    }
+    canvas {
+      display: block;
+      background: radial-gradient(#333, #111);
+    }
+    #hud {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: #fff;
+      font-size: 16px;
+      z-index: 10;
+    }
+    #gameOver {
+      position: absolute;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 36px;
+      color: white;
+      display: none;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 18px;
+      background: #0f0;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
-    <div class="ui-container">
-        <div class="ui-group"> 
-             <div class="ui-element timer">Time: <span id="timer">0</span>s</div>
-             <div class="ui-element health-label">Health: <span id="healthDisplay" class="health-display"></span></div>
-        </div>
-        <div class="ui-group">
-            <div class="ui-element combo">Combo: <span id="comboCount">x1</span></div> 
-            <div class="ui-element kill-counter">Kills: <span id="killCount">0</span></div>
-        </div>
-    </div>
-    <div id="highScoreDisplay">High Score: <span id="highScoreValue">0</span></div> 
+  <canvas id="game"></canvas>
+  <div id="hud">Score: <span id="score">0</span></div>
+  <div id="gameOver">
+    Game Over<br/>
+    <button onclick="location.reload()">Restart</button>
+  </div>
 
-    <canvas id="gameCanvas"></canvas>
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const scoreEl = document.getElementById("score");
+    const gameOverEl = document.getElementById("gameOver");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-    <div class="controls">
-        <button onclick="startGame()">▶️ Play</button>
-        <button onclick="resetGame()">🔄 Reset</button>
-        <!-- <button onclick="attack('left')">⬅️ Attack Left</button>
-        <button onclick="attack('right')">Attack Right ➡️</button> -->
-        <button onclick="togglePause()">⏸️ Pause</button>
-    </div>
+    const keys = {};
+    let score = 0;
 
-    <!-- {/* Placeholders: Ensure files exist or comment out */} -->
-    <audio id="attackSound" src="attack.mp3"></audio>
-    <audio id="hitSound" src="hit.mp3"></audio>
-    <audio id="damageSound" src="damage.mp3"></audio>
-    <!-- {/* ADVANCED: Optional sounds */} -->
-    <!-- {/* <audio id="comboSound" src="combo.mp3"></audio> */}
-    {/* <audio id="powerupSound" src="powerup.mp3"></audio> */}
-    {/* <audio id="music" src="music.mp3" loop></audio> */} -->
+    let player = {
+      x: canvas.width/2,
+      y: canvas.height/2,
+      r: 20,
+      speed: 5,
+      color: "cyan",
+      angle: 0,
+      health: 100
+    };
 
+    const bullets = [];
+    const enemies = [];
 
-    <script>
-        const canvas = document.getElementById("gameCanvas");
-        const ctx = canvas.getContext("2d");
-        canvas.width = 600;
-        canvas.height = 400;
+    window.addEventListener("keydown", (e) => keys[e.key] = true);
+    window.addEventListener("keyup", (e) => keys[e.key] = false);
 
-        // --- Constants ---
-        const PLAYER_COLOR = "#FFFFFF";
-        const PLAYER_ATTACK_COLOR = "#FF9933"; // Saffron
-        const ENEMY_COLOR_LEFT = "#138808";  // Green
-        const ENEMY_COLOR_RIGHT = "#000080"; // Navy Blue
-        const ENEMY_ARMORED_COLOR_LEFT = "#004d00"; // Darker Green for armored
-        const ENEMY_ARMORED_COLOR_RIGHT = "#000033"; // Darker Blue for armored
-        const PARTICLE_COLOR = "#FF0000";
-        const HEALTH_ICON = '❤️'; // ADVANCED: Heart icon for health
+    window.addEventListener("mousemove", (e) => {
+      player.angle = Math.atan2(e.clientY - player.y, e.clientX - player.x);
+    });
 
-        const PLAYER_WIDTH = 40;
-        const PLAYER_HEIGHT = 40;
-        const ENEMY_WIDTH = 40;
-        const ENEMY_HEIGHT = 40;
-        const PLAYER_ATTACK_DURATION = 180; // Slightly faster attack
-        const PLAYER_VULNERABLE_DURATION = 250; // Shorter vulnerability window
-        const PLAYER_ATTACK_RANGE = 65; // Increased range slightly
-        const PLAYER_HIT_RANGE = 40; // Reduced hit range slightly (harder for enemies)
-        const INITIAL_HEALTH = 3;
-        const MAX_COMBO_MULTIPLIER = 5; // ADVANCED: Max score multiplier
-        const COMBO_STEP = 5; // ADVANCED: Hits needed per multiplier increase
+    window.addEventListener("mousedown", () => {
+      bullets.push({
+        x: player.x,
+        y: player.y,
+        dx: Math.cos(player.angle) * 10,
+        dy: Math.sin(player.angle) * 10,
+        r: 5
+      });
+    });
 
-        // --- Game State Variables ---
-        let player;
-        let enemies;
-        let killCount; // Score based on kills
-        let keys;
-        let paused;
-        let brokenEnemies;
-        let timer;
-        let gameInterval;
-        let spawnTimeout;
-        let isGameOver;
-        let animationFrameId;
-        let highScore = 0; // ADVANCED
-        let screenShakeMagnitude = 0; // ADVANCED
-        let screenShakeDuration = 0; // ADVANCED
-        let lastTime = 0; // For calculating deltaTime
+    function spawnEnemy() {
+      const edge = Math.floor(Math.random() * 4);
+      let x, y;
+      if (edge === 0) { x = 0; y = Math.random() * canvas.height; }
+      else if (edge === 1) { x = canvas.width; y = Math.random() * canvas.height; }
+      else if (edge === 2) { x = Math.random() * canvas.width; y = 0; }
+      else { x = Math.random() * canvas.width; y = canvas.height; }
 
-        // --- Initialization ---
-        function initializeGame() {
-            const playerStartX = canvas.width / 2 - PLAYER_WIDTH / 2;
-            player = {
-                x: playerStartX,
-                y: canvas.height - PLAYER_HEIGHT - 10,
-                width: PLAYER_WIDTH,
-                height: PLAYER_HEIGHT,
-                isAttacking: false,
-                attackSide: null,
-                attackTimer: 0,
-                vulnerableTimer: 0,
-                health: INITIAL_HEALTH,
-                comboCount: 0, // ADVANCED
-                scoreMultiplier: 1 // ADVANCED
-            };
-            enemies = [];
-            killCount = 0;
-            keys = {};
-            paused = false;
-            isGameOver = false;
-            brokenEnemies = [];
-            timer = 0;
-            lastTime = performance.now(); // Initialize lastTime
+      enemies.push({
+        x,
+        y,
+        r: 20,
+        speed: 2 + Math.random() * 1.5,
+        color: "red"
+      });
+    }
 
-            // ADVANCED: Load high score
-            highScore = localStorage.getItem('centerDefenderHighScore') || 0;
-            document.getElementById("highScoreValue").textContent = highScore;
+    function update() {
+      // Movement
+      if (keys["w"] || keys["ArrowUp"]) player.y -= player.speed;
+      if (keys["s"] || keys["ArrowDown"]) player.y += player.speed;
+      if (keys["a"] || keys["ArrowLeft"]) player.x -= player.speed;
+      if (keys["d"] || keys["ArrowRight"]) player.x += player.speed;
 
-            clearInterval(gameInterval);
-            clearTimeout(spawnTimeout);
-            cancelAnimationFrame(animationFrameId);
+      // Keep on screen
+      player.x = Math.max(player.r, Math.min(canvas.width - player.r, player.x));
+      player.y = Math.max(player.r, Math.min(canvas.height - player.r, player.y));
 
-            updateHealthDisplay(); // ADVANCED: Update visual health
-            document.getElementById("killCount").textContent = killCount;
-            document.getElementById("timer").textContent = timer;
-            updateComboDisplay(); // ADVANCED: Update combo display
+      // Bullets
+      bullets.forEach((b, i) => {
+        b.x += b.dx;
+        b.y += b.dy;
+        if (b.x < 0 || b.y < 0 || b.x > canvas.width || b.y > canvas.height) {
+          bullets.splice(i, 1);
+        }
+      });
 
-            gameInterval = setInterval(() => {
-                if (!paused && !isGameOver) {
-                    timer++;
-                    document.getElementById("timer").textContent = timer;
-                }
-            }, 1000);
+      // Enemies
+      enemies.forEach((e, ei) => {
+        const angle = Math.atan2(player.y - e.y, player.x - e.x);
+        e.x += Math.cos(angle) * e.speed;
+        e.y += Math.sin(angle) * e.speed;
 
-            gameLoop(lastTime); // Start the game loop immediately
-            scheduleNextSpawn();
-             // Start music? (optional)
-             // const music = document.getElementById('music');
-             // if(music) music.play().catch(e => console.log("Music play failed:", e));
+        // Collision with player
+        const dist = Math.hypot(player.x - e.x, player.y - e.y);
+        if (dist < player.r + e.r) {
+          player.health -= 1;
+          if (player.health <= 0) {
+            cancelAnimationFrame(loopId);
+            gameOverEl.style.display = "block";
+          }
         }
 
-        // --- Input Handling ---
-        document.addEventListener("keydown", (e) => {
-            keys[e.key] = true;
-            if (!isGameOver && !paused) { // Only allow attacks if game is active
-                 if (e.key === "ArrowLeft") attack('left');
-                 if (e.key === "ArrowRight") attack('right');
-            }
-            if (e.key === "p" || e.key === "P") togglePause();
-            if (isGameOver && e.key === "Enter") resetGame();
+        // Bullets hit
+        bullets.forEach((b, bi) => {
+          const d = Math.hypot(b.x - e.x, b.y - e.y);
+          if (d < e.r + b.r) {
+            bullets.splice(bi, 1);
+            enemies.splice(ei, 1);
+            score++;
+            scoreEl.innerText = score;
+          }
         });
-        document.addEventListener("keyup", (e) => keys[e.key] = false);
+      });
+    }
 
-        // --- Spawning Logic ---
-        function scheduleNextSpawn() {
-            if (isGameOver) return;
-            // ADVANCED: Difficulty Scaling - Spawn delay decreases with kills/time
-            const baseDelay = 800; // Base ms delay
-            const minDelay = 250; // Minimum ms delay
-            const scalingFactor = Math.max(0, 1 - (killCount / 100) - (timer / 300)); // Decrease delay faster initially
-            const spawnDelay = Math.max(minDelay, (Math.random() * 0.5 + 0.75) * baseDelay * scalingFactor); // Randomness + Scaling
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            clearTimeout(spawnTimeout);
-            spawnTimeout = setTimeout(() => {
-                if (!paused && !isGameOver) {
-                    spawnEnemy();
-                }
-                scheduleNextSpawn();
-            }, spawnDelay);
-        }
+      // Player
+      ctx.save();
+      ctx.translate(player.x, player.y);
+      ctx.rotate(player.angle);
+      ctx.fillStyle = player.color;
+      ctx.beginPath();
+      ctx.moveTo(25, 0);
+      ctx.lineTo(-15, -15);
+      ctx.lineTo(-15, 15);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
 
-        function spawnEnemy() {
-            let side = Math.random() > 0.5 ? 'left' : 'right';
-            // ADVANCED: Enemy Variety & Speed Scaling
-            const isArmored = Math.random() < (0.15 + killCount / 200); // Chance increases with kills
-            const baseSpeed = 2.5;
-            const speedIncrease = Math.min(4, (killCount / 50) + (timer / 100)); // Speed increases, capped
-            const randomSpeedFactor = 1 + Math.random() * 0.4 - 0.2; // Slight speed variance
+      // Health bar
+      ctx.fillStyle = "lime";
+      ctx.fillRect(10, canvas.height - 20, player.health * 2, 10);
 
-            let enemy = {
-                x: side === 'left' ? 0 - ENEMY_WIDTH : canvas.width,
-                y: player.y + (Math.random() * 10 - 5), // Slight vertical variance
-                width: ENEMY_WIDTH * (isArmored ? 1.1 : 1), // Armored slightly bigger
-                height: ENEMY_HEIGHT * (isArmored ? 1.1 : 1),
-                speed: (side === 'left' ? 1 : -1) * (baseSpeed + speedIncrease) * randomSpeedFactor,
-                side: side,
-                isArmored: isArmored, // ADVANCED
-                health: isArmored ? 2 : 1, // ADVANCED
-                color: getEnemyColor(side, isArmored, 1) // Initial color
-            };
-            enemies.push(enemy);
-        }
-         // ADVANCED: Helper to get enemy color based on state
-         function getEnemyColor(side, isArmored, health) {
-             if (isArmored) {
-                 if (health === 2) {
-                     return side === 'left' ? ENEMY_ARMORED_COLOR_LEFT : ENEMY_ARMORED_COLOR_RIGHT;
-                 } else { // health === 1 (damaged armor)
-                      // Use a mix between armored and normal, or just normal color
-                      return side === 'left' ? ENEMY_COLOR_LEFT : ENEMY_COLOR_RIGHT; // Show normal color when damaged
-                 }
-             } else {
-                 return side === 'left' ? ENEMY_COLOR_LEFT : ENEMY_COLOR_RIGHT;
-             }
-         }
+      // Bullets
+      ctx.fillStyle = "white";
+      bullets.forEach(b => {
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
 
-        // --- Attack Logic ---
-        function attack(direction) {
-            if (paused || isGameOver || player.isAttacking) return;
+      // Enemies
+      enemies.forEach(e => {
+        ctx.fillStyle = e.color;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
 
-            // const attackSound = document.getElementById("attackSound");
-            // if (attackSound) attackSound.play().catch(e => {}); // Play sound
+    let loopId;
+    function loop() {
+      update();
+      draw();
+      loopId = requestAnimationFrame(loop);
+    }
 
-            player.isAttacking = true;
-            player.attackSide = direction;
-            player.attackTimer = PLAYER_ATTACK_DURATION;
-            player.vulnerableTimer = PLAYER_VULNERABLE_DURATION;
-
-            let hitRegistered = false; // Ensure only one hit per swing
-            enemies.forEach((enemy, index) => {
-                 if (!hitRegistered && enemy.side === direction && Math.abs((player.x + player.width / 2) - (enemy.x + enemy.width / 2)) < PLAYER_ATTACK_RANGE) {
-                     hitEnemy(enemy, index);
-                     hitRegistered = true; // Prevent hitting multiple enemies with one attack
-                 }
-            });
-        }
-        // ADVANCED: Renamed killEnemy -> hitEnemy to handle multi-hit
-        function hitEnemy(enemy, index) {
-            enemy.health--; // Decrease health
-
-            if (enemy.health <= 0) {
-                // Enemy defeated
-                // const hitSound = document.getElementById("hitSound");
-                // if (hitSound) hitSound.play().catch(e => {});
-
-                brokenEnemies.push({ x: enemy.x + enemy.width / 2, y: enemy.y + enemy.height / 2, time: Date.now() });
-                enemies.splice(index, 1);
-
-                // ADVANCED: Combo logic
-                player.comboCount++;
-                player.scoreMultiplier = Math.min(MAX_COMBO_MULTIPLIER, 1 + Math.floor(player.comboCount / COMBO_STEP));
-                killCount += player.scoreMultiplier; // Add score based on multiplier
-                updateComboDisplay();
-                // if (player.scoreMultiplier > 1) {
-                //     const comboSound = document.getElementById('comboSound');
-                //     if(comboSound) comboSound.play().catch(e => {});
-                // }
-
-                document.getElementById("killCount").textContent = killCount;
-            } else {
-                 // Enemy hit but not defeated (armored)
-                 // Play a different sound? e.g., armor hit
-                 enemy.color = getEnemyColor(enemy.side, enemy.isArmored, enemy.health); // Update color to show damage
-                 // Maybe add a small particle effect?
-            }
-        }
-
-
-        // --- Player Damage & Game Over ---
-        function playerTakesHit(enemy, index) {
-            player.health--;
-            updateHealthDisplay(); // ADVANCED
-
-            // ADVANCED: Reset Combo
-            if (player.comboCount > 0) {
-                 player.comboCount = 0;
-                 player.scoreMultiplier = 1;
-                 updateComboDisplay();
-            }
-
-            // ADVANCED: Trigger Screen Shake
-            screenShakeMagnitude = 6;
-            screenShakeDuration = 250; // ms
-
-            // const damageSound = document.getElementById("damageSound");
-            // if (damageSound) damageSound.play().catch(e => {});
-
-            // Remove the enemy that hit the player
-            if (index !== null && enemies[index] === enemy) { // Check if index is valid
-                 brokenEnemies.push({ x: enemy.x + enemy.width / 2, y: enemy.y + enemy.height / 2, time: Date.now() });
-                 enemies.splice(index, 1);
-            }
-
-
-            if (player.health <= 0) {
-                gameOver();
-            }
-        }
-
-        function gameOver() {
-            isGameOver = true;
-            paused = true; // Stop logic updates
-            clearTimeout(spawnTimeout);
-            cancelAnimationFrame(animationFrameId); // Stop rendering loop requests
-            // Stop music?
-            // const music = document.getElementById('music');
-            // if (music) music.pause();
-
-
-            // ADVANCED: Update High Score
-            if (killCount > highScore) {
-                highScore = killCount;
-                localStorage.setItem('centerDefenderHighScore', highScore);
-                document.getElementById("highScoreValue").textContent = highScore;
-                // Add a "New High Score!" message?
-            }
-
-            // Game Over display happens in draw() function now
-            // Force one final draw call to render the game over screen immediately
-             draw();
-        }
-
-        // --- UI Updates ---
-        // ADVANCED: Function to update health display
-        function updateHealthDisplay() {
-            const healthDisplay = document.getElementById("healthDisplay");
-            if (healthDisplay) {
-                healthDisplay.textContent = Array(Math.max(0, player.health)).fill(HEALTH_ICON).join('');
-            }
-        }
-         // ADVANCED: Function to update combo display
-         function updateComboDisplay() {
-              document.getElementById("comboCount").textContent = `x${player.scoreMultiplier}`;
-              // Optionally show combo count too: `x${player.scoreMultiplier} (${player.comboCount})`
-         }
-
-        // --- Pause Logic ---
-        function togglePause() {
-             if (isGameOver) return; // Don't allow pause if game over
-             paused = !paused;
-             if (!paused) {
-                 // Resume game loop
-                 lastTime = performance.now(); // Reset lastTime to avoid huge deltaTime jump
-                 gameLoop(lastTime);
-                 scheduleNextSpawn(); // Ensure spawning continues
-             } else {
-                  // Pause music?
-                  // const music = document.getElementById('music');
-                  // if (music) music.pause();
-                  // Draw pause screen immediately
-                  draw(); // Will show the pause overlay drawn in draw()
-             }
-        }
-
-        // --- Update Game State ---
-        function update(deltaTime) {
-            if (paused || isGameOver) return; // Should already be handled by loop, but good safety check
-
-            // Update player state timers
-            if (player.attackTimer > 0) player.attackTimer = Math.max(0, player.attackTimer - deltaTime);
-            if (player.vulnerableTimer > 0) player.vulnerableTimer = Math.max(0, player.vulnerableTimer - deltaTime);
-            if (player.attackTimer <= 0) player.isAttacking = false; // Ensure attacking stops
-
-             // ADVANCED: Update Screen Shake Timer
-             if (screenShakeDuration > 0) screenShakeDuration = Math.max(0, screenShakeDuration - deltaTime);
-             else screenShakeMagnitude = 0;
-
-
-            // Update Enemies
-            enemies.forEach((enemy, index) => {
-                enemy.x += enemy.speed * (deltaTime / 16.67); // Frame-independent movement
-
-                const centerDist = Math.abs((player.x + player.width / 2) - (enemy.x + enemy.width / 2));
-                const isClose = centerDist < PLAYER_HIT_RANGE;
-
-                if (isClose) {
-                     let playerHitCondition = false;
-                     // Vulnerable: Attacking opposite side
-                     if (player.isAttacking && player.attackSide !== enemy.side && player.vulnerableTimer > 0) {
-                         playerHitCondition = true;
-                     }
-                     // Not attacking at all (missed block)
-                     else if (!player.isAttacking) {
-                         playerHitCondition = true;
-                     }
-
-                     if (playerHitCondition) {
-                         playerTakesHit(enemy, index);
-                         // Important: Return or use logic to prevent further checks for this enemy *after* it's removed
-                         return; // Skip rest of checks for this (now potentially removed) enemy
-                     }
-                }
-
-                 // Remove enemies that go way off-screen
-                 if ((enemy.side === 'left' && enemy.x > canvas.width + 50) || (enemy.side === 'right' && enemy.x < 0 - enemy.width - 50)) {
-                    enemies.splice(index, 1);
-                 }
-            });
-
-            // Update broken enemy particle effect lifetime
-            brokenEnemies = brokenEnemies.filter(p => Date.now() - p.time < 400); // Faster fade
-        }
-
-        // --- Draw Everything ---
-        function draw() {
-            ctx.save(); // Save context state
-
-            // ADVANCED: Apply Screen Shake Translation
-            if (screenShakeDuration > 0 && screenShakeMagnitude > 0) {
-                const shakeX = (Math.random() - 0.5) * 2 * screenShakeMagnitude;
-                const shakeY = (Math.random() - 0.5) * 2 * screenShakeMagnitude;
-                ctx.translate(shakeX, shakeY);
-            }
-
-            // Clear canvas (respecting translation)
-            // Calculate clear area slightly larger if shaking to avoid artifacts
-            const clearX = (screenShakeMagnitude > 0) ? -screenShakeMagnitude : 0;
-            const clearY = (screenShakeMagnitude > 0) ? -screenShakeMagnitude : 0;
-            const clearW = canvas.width + (screenShakeMagnitude > 0 ? 2 * screenShakeMagnitude : 0);
-            const clearH = canvas.height + (screenShakeMagnitude > 0 ? 2 * screenShakeMagnitude : 0);
-            ctx.clearRect(clearX, clearY, clearW, clearH);
-
-
-             // Draw background / ground
-             if (!canvas.style.backgroundImage || canvas.style.backgroundImage === 'none') {
-                ctx.fillStyle = '#f5f5f5';
-                ctx.fillRect(clearX, clearY, clearW, clearH); // Fill potentially larger area
-             }
-             ctx.fillStyle = '#a0522d'; // Sienna Brown
-             ctx.fillRect(clearX, player.y + player.height, clearW, canvas.height - (player.y + player.height));
-
-            // Draw Player
-            ctx.fillStyle = PLAYER_COLOR;
-            ctx.fillRect(player.x, player.y, player.width, player.height);
-            if (player.isAttacking && player.attackTimer > 0) {
-                ctx.strokeStyle = PLAYER_ATTACK_COLOR;
-                ctx.lineWidth = 5; // Thicker attack line
-                ctx.beginPath();
-                const attackX = player.attackSide === 'left' ? player.x - 20 : player.x + player.width + 20; // Longer reach visual
-                const attackY = player.y + player.height / 2;
-                ctx.moveTo(player.x + player.width / 2, player.y + player.height / 2);
-                ctx.lineTo(attackX, attackY);
-                ctx.stroke();
-                ctx.lineWidth = 1;
-            }
-
-            // Draw Enemies
-            enemies.forEach(enemy => {
-                ctx.fillStyle = enemy.color; // Already updated color for damaged armor
-                ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
-                 // Optional: Add visual indicator for armored enemy health? (e.g., small bar above?)
-            });
-
-            // Draw Broken Enemy Particles
-            ctx.fillStyle = PARTICLE_COLOR;
-            brokenEnemies.forEach(p => {
-                for (let i = 0; i < 4; i++) { // More particles
-                    ctx.fillRect(p.x + (Math.random() * 20 - 10), p.y + (Math.random() * 20 - 10), 6, 6);
-                }
-            });
-
-            ctx.restore(); // Restore context state (removes translation)
-
-            // --- Draw UI Overlays (after restoring context) ---
-            if (isGameOver) {
-                 ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
-                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                 ctx.fillStyle = "white";
-                 ctx.font = "bold 48px sans-serif";
-                 ctx.textAlign = "center";
-                 ctx.fillText("Game Over!", canvas.width / 2, canvas.height / 2 - 60);
-                 ctx.font = "24px sans-serif";
-                 ctx.fillText(`Score: ${killCount}`, canvas.width / 2, canvas.height / 2 - 10);
-                 ctx.fillText(`Time: ${timer}s`, canvas.width / 2, canvas.height / 2 + 20);
-                 // ADVANCED: Display High Score Comparison
-                 if (killCount === highScore && killCount > 0) {
-                     ctx.fillStyle = "#FFD700"; // Gold color for new high score
-                     ctx.font = "bold 20px sans-serif";
-                     ctx.fillText("New High Score!", canvas.width / 2, canvas.height / 2 + 60);
-                 } else {
-                     ctx.fillStyle = "white";
-                     ctx.font = "18px sans-serif";
-                     ctx.fillText(`High Score: ${highScore}`, canvas.width / 2, canvas.height / 2 + 60);
-                 }
-                 ctx.fillStyle = "white";
-                 ctx.font = "16px sans-serif";
-                 ctx.fillText("Press Enter or Reset to play again.", canvas.width / 2, canvas.height / 2 + 90);
-            } else if (paused) {
-                 ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
-                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                 ctx.fillStyle = "white";
-                 ctx.font = "bold 40px sans-serif";
-                 ctx.textAlign = "center";
-                 ctx.fillText("Paused", canvas.width / 2, canvas.height / 2);
-                 ctx.font = "16px sans-serif";
-                 ctx.fillText("(Press P to Resume)", canvas.width / 2, canvas.height / 2 + 30);
-            }
-        }
-
-        // --- Main Game Loop ---
-        function gameLoop(timestamp) {
-            if (isGameOver) {
-                 // Stop requesting new frames if game is over
-                 // Final draw call might have already happened in gameOver()
-                 return;
-            }
-
-            // Calculate deltaTime
-            const deltaTime = timestamp - lastTime;
-            lastTime = timestamp;
-
-            if (!paused) {
-                 // Update game state only if not paused
-                 update(deltaTime || 16.67); // Use fallback for first frame or if deltaTime is 0
-            }
-
-            // Always draw (to show pause/game over screen correctly)
-            draw();
-
-            // Request the next frame
-            animationFrameId = requestAnimationFrame(gameLoop);
-        }
-
-        // --- Game Control Functions ---
-        function startGame() {
-            if (player && !isGameOver && !paused) return; // Prevent starting if already running
-            initializeGame();
-        }
-        function resetGame() {
-             initializeGame();
-        }
-
-        // --- Initial Screen ---
-        function showStartScreen() {
-             ctx.clearRect(0, 0, canvas.width, canvas.height);
-              // Draw background / ground
-             ctx.fillStyle = '#f5f5f5';
-             ctx.fillRect(0, 0, canvas.width, canvas.height);
-             ctx.fillStyle = '#a0522d';
-             ctx.fillRect(0, canvas.height - 50, canvas.width, 50); // Simple ground
-
-             ctx.fillStyle = "#333";
-             ctx.font = "bold 36px sans-serif";
-             ctx.textAlign = "center";
-             ctx.fillText("Center Defender", canvas.width / 2, canvas.height / 2 - 40);
-             ctx.font = "20px sans-serif";
-             ctx.fillText("Click Play to Start", canvas.width / 2, canvas.height / 2 + 10);
-             // Display initial high score
-             const initialHighScore = localStorage.getItem('centerDefenderHighScore') || 0;
-             document.getElementById("highScoreValue").textContent = initialHighScore;
-             updateHealthDisplay(); // Show initial health icons correctly
-             updateComboDisplay(); // Show initial combo
-        }
-
-        // Show start screen initially instead of starting game logic
-        showStartScreen();
-
-    </script>
+    setInterval(spawnEnemy, 1500); // Enemy spawner
+    loop();
+  </script>
 </body>
 </html>
